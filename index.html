@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCTO - Plataforma de Inteligencia Táctica</title>
+    <style>
+        /* Estilos CSS para la interfaz */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a2e; /* Fondo oscuro (Táctico) */
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #232946; /* Contenedor principal */
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            color: #b8c4d8;
+            border-bottom: 2px solid #5a5a8a;
+            padding-bottom: 10px;
+            text-align: center;
+        }
+        h2 {
+            color: #ff9f1c; /* Color de acento para secciones */
+            margin-top: 30px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #b8c4d8;
+        }
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #5a5a8a;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background-color: #121629;
+            color: #e0e0e0;
+        }
+        textarea {
+            resize: vertical;
+        }
+        button {
+            background-color: #ff9f1c;
+            color: #1a1a2e;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #e68d17;
+        }
+        #intelligence_output {
+            background-color: #121629;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px dashed #5a5a8a;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        .confidence-slider-container {
+            display: flex;
+            align-items: center;
+        }
+        .confidence-slider-container input[type="range"] {
+            width: 80%;
+            margin-right: 10px;
+        }
+        .confidence-slider-container span {
+            min-width: 100px;
+            text-align: right;
+            color: #ff9f1c;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><span style="color:#ff9f1c;">OCTO</span> - Plataforma de Ingreso de Inteligencia (FRONT-END)</h1>
+    <p style="text-align: center;">Interfaz de Recopilación Táctica. Generar el paquete antes de enviar al Analista (OCTO).</p>
+
+    ---
+
+    <section id="data-input">
+        <h2>1. Ingreso de Datos Crudos (OSINT / HUMINT)</h2>
+        
+        <label for="task_id">ID de Tarea (Ej: Op-CÓNDOR-001):</label>
+        <input type="text" id="task_id" name="task_id" value="TAREA-" required>
+
+        <label for="source">Fuente de Recopilación:</label>
+        <select id="source" name="source">
+            <option value="OSINT_TWT">OSINT - Twitter/X</option>
+            <option value="OSINT_FORUM">OSINT - Foro Público/Blog</option>
+            <option value="HUMINT_CAMPO">HUMINT - Agente de Campo/Entrevista</option>
+            <option value="TECNICA_SIGINT">INT TÉCNICA - Interceptación de Señal</option>
+            <option value="OTRA">OTRA (Especificar en Contexto)</option>
+        </select>
+
+        <label for="raw_data">Datos Crudos (Texto, URL, Coordenadas, Hashes, etc.):</label>
+        <textarea id="raw_data" name="raw_data" rows="10" placeholder="Pegar aquí la información sin procesar..." required></textarea>
+
+        <label for="confidence_level">Confianza de la Fuente (Evaluación del Operador):</label>
+        <div class="confidence-slider-container">
+            <input type="range" id="confidence_level" name="confidence_level" min="1" max="5" value="3" oninput="updateConfidenceDisplay(this.value)">
+            <span id="confidence_display">3 (Media)</span>
+        </div>
+        <small style="color: #5a5a8a;">1=No Verificado, 5=Altamente Verificado/Confiable.</small>
+    </section>
+
+    ---
+
+    <section id="analysis-request">
+        <h2>2. Solicitud de Análisis (Pregunta de Inteligencia - PI)</h2>
+        
+        <label for="pi_question">Pregunta de Inteligencia (PI):</label>
+        <input type="text" id="pi_question" name="pi_question" placeholder="Ej: ¿Cuál es la ruta de extracción más probable para el Objetivo X en las próximas 48 horas?">
+        
+        <label for="context">Contexto Operativo / Tarea:</label>
+        <textarea id="context" name="context" rows="4" placeholder="Breve descripción del objetivo, la amenaza o el propósito del análisis..."></textarea>
+    </section>
+
+    ---
+
+    <section id="package-generation">
+        <h2>3. Generar Paquete y Enviar a OCTO (Analista)</h2>
+        <button onclick="generateIntelligencePackage()">Generar Paquete de Inteligencia</button>
+        
+        <label for="intelligence_output">Paquete Estructurado (Copiar y Pegar en el Chat con OCTO):</label>
+        <textarea id="intelligence_output" name="intelligence_output" rows="15" readonly></textarea>
+        
+        <button onclick="copyToClipboard()" style="background-color: #5a5a8a;">Copiar al Portapapeles</button>
+    </section>
+
+</div>
+
+<script>
+    // Mapeo de niveles de confianza para mejor visualización
+    const confidenceMap = {
+        '1': '1 (No Verificado)',
+        '2': '2 (Dudosa)',
+        '3': '3 (Media)',
+        '4': '4 (Buena)',
+        '5': '5 (Altamente Confiable)'
+    };
+
+    function updateConfidenceDisplay(value) {
+        document.getElementById('confidence_display').textContent = confidenceMap[value];
+    }
+
+    // Asegurar que el display se inicie correctamente
+    window.onload = function() {
+        updateConfidenceDisplay(document.getElementById('confidence_level').value);
+    };
+
+    function generateIntelligencePackage() {
+        // 1. Recolección de Datos
+        const taskId = document.getElementById('task_id').value.trim();
+        const source = document.getElementById('source').value;
+        const rawData = document.getElementById('raw_data').value.trim();
+        const confidenceValue = document.getElementById('confidence_level').value;
+        const confidenceText = confidenceMap[confidenceValue];
+        const piQuestion = document.getElementById('pi_question').value.trim();
+        const context = document.getElementById('context').value.trim();
+
+        if (!taskId || !rawData || !piQuestion) {
+            alert("ALERTA: Faltan campos esenciales (ID de Tarea, Datos Crudos, PI). Asegure la rigurosidad.");
+            return;
+        }
+
+        // 2. Estructuración del Paquete de Inteligencia (Formato para OCTO)
+        const intelligencePackage = `
+🚨 **PAQUETE DE INTELIGENCIA CRUDA PARA ANÁLISIS - OCTO** 🚨
+
+## FICHA DE RECOPILACIÓN
+* **ID de Tarea:** ${taskId}
+* **Fuente Principal:** ${source}
+* **Confianza de la Fuente (Operador):** ${confidenceText}
+
+## ENFOQUE DEL ANÁLISIS
+* **Pregunta de Inteligencia (PI):** ${piQuestion}
+* **Contexto Operativo:** ${context || 'N/A - (No se proporcionó contexto adicional)'}
+
+---
+## DATOS CRUDOS PARA PROCESAMIENTO (CRITICAL DATA)
+(OCTO: Analice la veracidad, relevancia y aplique metodología ACH/Matriz)
+---
+${rawData}
+---
+`;
+        
+        // 3. Mostrar el paquete en el área de texto
+        document.getElementById('intelligence_output').value = intelligencePackage;
+    }
+
+    function copyToClipboard() {
+        const output = document.getElementById('intelligence_output');
+        if (output.value) {
+            output.select();
+            output.setSelectionRange(0, 99999); // Para móviles
+            document.execCommand("copy");
+            alert("¡Paquete copiado al portapapeles! Péguelo en el chat para iniciar mi análisis.");
+        } else {
+            alert("Primero debe GENERAR el Paquete de Inteligencia.");
+        }
+    }
+</script>
+
+</body>
+</html>
